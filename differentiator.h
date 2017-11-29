@@ -5,6 +5,12 @@
 #ifndef DIFFERENTIATOR_DIFFERENTIATOR_H
 #define DIFFERENTIATOR_DIFFERENTIATOR_H
 
+
+
+const char* s = NULL;
+
+int p = 0;
+
 const int BUF_LENGTH = 50;
 
 const int ERROR = -1;
@@ -74,13 +80,15 @@ private:
 
 void print_JPEG(Expression *diff);
 
-void skip_s(char *buffer, int *position);
+void skip_s(char *buffer, int position);
 
-int compare_str_bin(char *value);
+int compare_str_bin(char value);
 
 int compare_str_un(char *value);
 
 Expression *create_tree(char *buffer, int *position);
+
+void skip_str();
 
 
 #endif //DIFFERENTIATOR_DIFFERENTIATOR_H
