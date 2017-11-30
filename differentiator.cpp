@@ -3,41 +3,30 @@
 #include <cstring>
 #include <cassert>
 
-void texmaker();
+void texmaker(Expression *diff);
 
-Expression *GetG0(const char *text);
-
-Expression *GetN();
-
-Expression *GetE();
-
-Expression *GetId();
-
-Expression *GetT();
-
-Expression *GetP();
 
 int main() {
-    int pos = 0;
-    char *buf = "2 + (3*x + 2)";
+
+    char *buf = "2 + 3*x + 1*x*4 + sin(x) + sqrt(x)";
 
     Expression *node_1 = GetG0(buf);
     Expression *node_2 = node_1->derivative("x");
     Expression *node_3 = node_2->optimize();
-    print_JPEG(node_1);
+    print_JPEG(node_3);
 
-    //texmaker();
+    texmaker(node_3);
 }
 
-void texmaker() {
+
+void texmaker(Expression *diff) {
     FILE *texf = fopen("expression.tex", "w");
-    fprintf(texf, "\\documentclass{article}\n"
-            "\\begin{document}\n"
-            "    Hello, world!\n i am andrew \n"
-            "\\end{document}");
+    fprintf(texf, "\\documentclass{article}\n\\begin{document}\n");
+    diff->print_dot(texf);
+    fprintf(texf, "\\end{document}");
     fclose(texf);
     system("pdflatex expression.tex");
-    //   system("");
+    system("xdg-open expression.pdf");
 }
 
 
@@ -54,14 +43,14 @@ Expression *GetE() {
     while (s[p] == '+' || s[p] == '-') {
         int op = compare_str_bin(s[p]);
         p++;
-        skip_str();
         Expression *val2 = GetT();
-        return new Operator_bin(op, val, val2);
+        val = new Operator_bin(op, val, val2);
+        skip_str();
     }
+    return val;
 }
 
 Expression *GetT() {
-    skip_str();
     Expression *val = GetP();
 
     skip_str();
@@ -69,28 +58,30 @@ Expression *GetT() {
     while (s[p] == '*' || s[p] == '/') {
         int op = compare_str_bin(s[p]);
         p++;
-        skip_str();
+
         Expression *val2 = GetP();
-        return new Operator_bin(op, val, val2);
+        val = new Operator_bin(op, val, val2);
+        skip_str();
     }
     return val;
 }
 
 Expression *GetP() {
+    skip_str();
     if (s[p] == '(') {
         p++;
         Expression *val = GetE();
+        skip_str();
         assert(s[p == ')']);
         p++;
         return val;
-    } else {
-        int prev_p = p;
-        Expression *val = GetN();
-        if (prev_p != p)
-            return val;
-        else
-            return GetId();
     }
+    int prev_p = p;
+    Expression *val = GetN();
+    if (prev_p != p)
+        return val;
+    else
+        return GetId();
 }
 
 
@@ -112,6 +103,22 @@ Expression *GetId() {
     while (isalpha(s[p])) {
         value[counter++] = s[p++];
     }
+    if (!strcmp(value, "sin")) {
+        Expression *val = GetP();
+        return new Operator_un(SIN, val);
+    }
+    if (!strcmp(value, "cos")) {
+        Expression *val = GetP();
+        return new Operator_un(COS, val);
+    }
+    if (!strcmp(value, "sqrt")) {
+        Expression *val = GetP();
+        return new Operator_un(SQRT, val);
+    }
+    if (!strcmp(value, "neg")) {
+        Expression *val = GetP();
+        return new Operator_un(UN_MINUS, val);
+    }
     return new Variable(value);
 }
 
@@ -121,60 +128,6 @@ void skip_str() {
         p++;
 }
 
-
-/*
-
-Expression *create_tree(char *buffer, int *position) {
-
-    skip_s(buffer, position);
-
-    if (buffer[*position] == '(') {
-        int counter = 0;
-        char value[BUF_LENGTH] = {0};
-        (*position)++;
-        while (!isspace(buffer[*position])) {
-            value[counter++] = buffer[(*position)++];
-        }
-        int bin_act = compare_str_bin(value);
-        if (bin_act != ERROR) {
-            skip_s(buffer, position);
-            Expression *new_node_l = create_tree(buffer, position);
-            skip_s(buffer, position);
-            Expression *new_node_r = create_tree(buffer, position);
-            skip_s(buffer, position);
-            assert(buffer[*position] == ')');
-            (*position)++;
-            return new Operator_bin(bin_act, new_node_l, new_node_r);
-        }
-
-        int un_act = compare_str_un(value);
-        if (un_act != ERROR) {
-            skip_s(buffer, position);
-            Expression *new_node_l = create_tree(buffer, position);
-            skip_s(buffer, position);
-            assert(buffer[*position] == ')');
-            (*position)++;
-            return new Operator_un(un_act, new_node_l);
-        }
-        assert(0);
-    }
-
-    int counter = 0;
-    char value[BUF_LENGTH] = {0};
-    while (!isspace(buffer[*position]) && buffer[*position] != ')')
-        value[counter++] = buffer[(*position)++];
-
-    if (isalpha(value[0])) {
-        return new Variable(value);
-    }
-
-    if (isdigit(value[0])) {
-        return new Number(atof(value));
-    }
-    assert(0);
-}
-
-*/
 
 int compare_str_bin(char value) {
 
@@ -195,11 +148,6 @@ int compare_str_un(char *value) {
     return ERROR;
 }
 
-
-void skip_s(char *buffer, int *position) {
-    while (isspace(buffer[*position]))
-        (*position)++;
-}
 
 Expression::Expression() {
 }
