@@ -3,26 +3,30 @@
 #include <cstring>
 #include <cassert>
 
-void texmaker(Expression *diff);
-
 
 int main() {
 
-    char *buf = "2 + 3*x + 1*x*4 + sin(x) + sqrt(x)";
+    char *buf = "sin(5*x)";
 
     Expression *node_1 = GetG0(buf);
     Expression *node_2 = node_1->derivative("x");
     Expression *node_3 = node_2->optimize();
     print_JPEG(node_3);
+    texmaker(node_1, node_3);
 
-    texmaker(node_3);
 }
 
 
-void texmaker(Expression *diff) {
+void texmaker(Expression *diff_1, Expression *diff_2) {
     FILE *texf = fopen("expression.tex", "w");
-    fprintf(texf, "\\documentclass{article}\n\\begin{document}\n");
-    diff->print_dot(texf);
+    fprintf(texf, "\\documentclass[a4paper, 12pt]{article}\n"
+            "\\usepackage{amsmath, amsfonts,, amssymb, amsthm, mathtools}\n"
+            "\\begin{document}\n");
+    fprintf(texf, "Expression :\n$");
+    diff_1->print_tex_name(texf);
+    fprintf(texf, "$\n\n\nDerivative :\n$");
+    diff_2->print_tex_name(texf);
+    fprintf(texf, "$\n");
     fprintf(texf, "\\end{document}");
     fclose(texf);
     system("pdflatex expression.tex");
@@ -74,6 +78,11 @@ Expression *GetP() {
         skip_str();
         assert(s[p == ')']);
         p++;
+        if (s[p] == '^') {
+            p++;
+            Expression *val2 = GetE();
+            val = new Operator_bin(DEG, val, val2);
+        }
         return val;
     }
     int prev_p = p;
@@ -119,6 +128,10 @@ Expression *GetId() {
         Expression *val = GetP();
         return new Operator_un(UN_MINUS, val);
     }
+    if (!strcmp(value, "ln")) {
+        Expression *val = GetP();
+        return new Operator_un(LN, val);
+    }
     return new Variable(value);
 }
 
@@ -156,6 +169,9 @@ Expression::Expression() {
 void Expression::print_dot_name(FILE *code) {
 }
 
+void Expression::print_tex_name(FILE *code) {
+}
+
 void Operator_un::print_dot(FILE *code) {
     fprintf(code, "\"");
     print_dot_name(code);
@@ -164,6 +180,7 @@ void Operator_un::print_dot(FILE *code) {
     fprintf(code, "\"\n");
     arg_f->print_dot(code);
 }
+
 
 void Operator_bin::print_dot(FILE *code) {
     fprintf(code, "\"");
@@ -180,6 +197,7 @@ void Operator_bin::print_dot(FILE *code) {
     fprintf(code, "\"\n");
     arg_s->print_dot(code);
 }
+
 
 void Expression::print_dot(FILE *code) {
 }
@@ -236,10 +254,49 @@ void Operator_un::print_dot_name(FILE *code) {
         case UN_MINUS :
             fprintf(code, "minus");
             break;
+        case LN:
+            fprintf(code, "ln");
+            break;
     }
     fprintf(code, " ");
     arg_f->print_dot_name(code);
     fprintf(code, ")");
+}
+
+void Operator_un::print_tex_name(FILE *code) {
+
+    switch (type_un_op) {
+        case SIN :
+            fprintf(code, "\\sin");
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            break;
+        case COS :
+            fprintf(code, "\\cos");
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            break;
+        case SQRT :
+            fprintf(code, "\\sqrt{");
+            arg_f->print_tex_name(code);
+            fprintf(code, "}");
+            break;
+        case UN_MINUS :
+            fprintf(code, "-");
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            break;
+        case LN:
+            fprintf(code, "\\ln");
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            break;
+    }
+
 }
 
 
@@ -247,27 +304,107 @@ void Variable::print_dot_name(FILE *code) {
     fprintf(code, "%s", var_name);
 }
 
-void Operator_bin::print_dot_name(FILE *code) {
-    arg_f->print_dot_name(code);
-    fprintf(code, " ");
+void Variable::print_tex_name(FILE *code) {
+    fprintf(code, "%s", var_name);
+}
+
+
+void Operator_bin::print_tex_name(FILE *code) {
     switch (type_bin_op) {
         case ADD :
+            arg_f->print_tex_name(code);
+            fprintf(code, " ");
             fprintf(code, "+");
+            fprintf(code, " ");
+            arg_s->print_tex_name(code);
             break;
         case SUB :
+            arg_f->print_tex_name(code);
+            fprintf(code, " ");
             fprintf(code, "-");
+            fprintf(code, " ");
+            arg_s->print_tex_name(code);
             break;
         case MUL:
-            fprintf(code, "*");
+
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            fprintf(code, "\\cdot ");
+            //   fprintf(code, "(");
+            arg_s->print_tex_name(code);
+            //     fprintf(code, ")");
+
             break;
         case DIV :
-            fprintf(code, "/");
+
+            fprintf(code, "\\frac{");
+            arg_f->print_tex_name(code);
+            fprintf(code, "}{");
+            arg_s->print_tex_name(code);
+            fprintf(code, "}");
+
+            break;
+        case DEG:
+
+            fprintf(code, "(");
+            arg_f->print_tex_name(code);
+            fprintf(code, ")");
+            fprintf(code, "^");
+            fprintf(code, "{");
+            arg_s->print_tex_name(code);
+            fprintf(code, "}");
             break;
     }
 
+}
 
-    fprintf(code, " ");
-    arg_s->print_dot_name(code);
+
+void Operator_bin::print_dot_name(FILE *code) {
+
+    switch (type_bin_op) {
+        case ADD :
+            arg_f->print_dot_name(code);
+            fprintf(code, " ");
+            fprintf(code, "+");
+            fprintf(code, " ");
+            arg_s->print_dot_name(code);
+            break;
+        case SUB :
+            arg_f->print_dot_name(code);
+            fprintf(code, " ");
+            fprintf(code, "-");
+            fprintf(code, " ");
+            arg_s->print_dot_name(code);
+            break;
+        case MUL:
+            fprintf(code, "(");
+            arg_f->print_dot_name(code);
+            fprintf(code, ")");
+            fprintf(code, "*");
+            fprintf(code, "(");
+            arg_s->print_dot_name(code);
+            fprintf(code, ")");
+            break;
+        case DIV :
+            fprintf(code, "(");
+            arg_f->print_dot_name(code);
+            fprintf(code, ")");
+            fprintf(code, "/");
+            fprintf(code, "(");
+            arg_s->print_dot_name(code);
+            fprintf(code, ")");
+            break;
+        case DEG:
+            fprintf(code, "(");
+            arg_f->print_dot_name(code);
+            fprintf(code, ")");
+            fprintf(code, "^");
+            fprintf(code, "(");
+            arg_s->print_dot_name(code);
+            fprintf(code, ")");
+            break;
+    }
 
 }
 
@@ -275,6 +412,9 @@ void Number::print_dot_name(FILE *code) {
     fprintf(code, "%g", num_val);
 }
 
+void Number::print_tex_name(FILE *code) {
+    fprintf(code, "%g", num_val);
+}
 
 Expression *Operator_bin::optimize() {
     Expression *x = arg_f->optimize();
@@ -346,6 +486,10 @@ Expression *Operator_un::derivative(char *var) {
             return new Operator_bin(DIV,
                                     arg_f->derivative(var),
                                     new Operator_bin(MUL, new Number(2), this));
+        case LN:
+            return new Operator_bin(DIV,
+                                    arg_f->derivative(var),
+                                    arg_f);
     }
 }
 
@@ -368,6 +512,10 @@ Expression *Operator_bin::derivative(char *var) {
             return new Operator_bin(SUB,
                                     new Operator_bin(DIV, arg_f->derivative(var), arg_s),
                                     new Operator_bin(MUL, this, new Operator_bin(DIV, arg_s->derivative(var), arg_s)));
+        case DEG:
+            return new Operator_bin(MUL,
+                                    new Operator_bin(MUL, arg_s, arg_f->derivative(var)),
+                                    new Operator_bin(DEG, arg_f, new Operator_bin(SUB, arg_s, new Number(1))));
     }
 
 }

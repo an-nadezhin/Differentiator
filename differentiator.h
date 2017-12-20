@@ -16,11 +16,11 @@ const int BUF_LENGTH = 50;
 const int ERROR = -1;
 
 enum UnOp {
-    SIN, COS, SQRT, UN_MINUS
+    SIN, COS, SQRT, LN, UN_MINUS
 };
 
 enum BinOp {
-    ADD, MUL, SUB, DIV
+    ADD, MUL, SUB, DEG, DIV,
 };
 
 class Expression {
@@ -28,15 +28,16 @@ public:
     Expression();
     virtual void print_dot(FILE *code);
     virtual void print_dot_name(FILE *code);
+    virtual void print_tex_name(FILE *code);
     virtual Expression *derivative(char *);
     virtual Expression *optimize();
-    virtual void print_tex(Expression *);
 };
 
 class Variable : public Expression {
 public:
     Variable(char *);
     void print_dot_name(FILE *code);
+    void print_tex_name(FILE *code);
     ~Variable();
     Expression * derivative(char*);
 private:
@@ -47,6 +48,7 @@ class Number : public Expression {
 public:
     Number(double);
     void print_dot_name(FILE *code);
+    void print_tex_name(FILE *code);
     Expression * derivative(char*);
     double num();
 
@@ -59,6 +61,7 @@ public:
     Operator_un(int, Expression *);
     void print_dot(FILE *code);
     void print_dot_name(FILE *code);
+    void print_tex_name(FILE *code);
     Expression * derivative(char*);
     Expression *optimize();
 private:
@@ -71,8 +74,10 @@ public:
     Operator_bin(int, Expression *, Expression *);
     void print_dot(FILE* code);
     void print_dot_name(FILE *code);
+    void print_tex_name(FILE *code);
     Expression *derivative(char *);
     Expression *optimize();
+
 private:
     int type_bin_op;
     Expression *arg_f;
@@ -98,5 +103,8 @@ Expression *GetId();
 Expression *GetT();
 
 Expression *GetP();
+
+void texmaker(Expression *diff_1, Expression *diff_2);
+
 
 #endif //DIFFERENTIATOR_DIFFERENTIATOR_H
